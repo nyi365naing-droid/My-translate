@@ -1,44 +1,49 @@
 import streamlit as st
 import requests
+from bs4 import BeautifulSoup
+import urllib.parse
 
-st.set_page_config(page_title="Fast Torrent Search", page_icon="🎬")
+st.set_page_config(page_title="Stable Torrent Search", page_icon="🎬")
 
-st.title("🎬 High-Speed Torrent Search")
-st.caption("Using API Mode (Faster & More Reliable)")
+st.title("🎬 Stable Torrent Search")
+st.caption("Anti-Block Mode (Google Search Method)")
 
-query = st.text_input("Search for a movie", placeholder="e.g. Jackie Chan")
+query = st.text_input("Enter Movie Name", placeholder="e.g. Stephen Chow")
 
 if query:
-    with st.spinner('Fetching results...'):
-        # Using SolidTorrent API which is much more stable than scraping
-        api_url = f"https://solidtorrents.to/api/v1/search?q={query}&category=all"
+    with st.spinner('Finding stable links...'):
+        # We search Google for the magnet link directly
+        search_query = f"{query} site:bitsearch.to OR site:thepiratebay.org"
+        url = f"https://www.google.com/search?q={urllib.parse.quote(search_query)}"
         
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
+        }
+
         try:
-            response = requests.get(api_url, timeout=15)
+            response = requests.get(url, headers=headers, timeout=15)
             if response.status_code == 200:
-                data = response.json()
-                results = data.get('results', [])
-
-                if not results:
-                    st.warning("No movies found for that name.")
+                soup = BeautifulSoup(response.text, "html.parser")
+                # Find all search result links
+                links = soup.find_all("a")
                 
-                for item in results:
-                    title = item.get('title', 'No Title')
-                    magnet = item.get('magnet')
-                    size_bytes = item.get('size', 0)
-                    # Convert bytes to GB or MB
-                    size = f"{round(size_bytes / (1024**3), 2)} GB" if size_bytes > 1024**3 else f"{round(size_bytes / (1024**2), 2)} MB"
-                    seeds = item.get('swarm', {}).get('seeders', 0)
-
-                    with st.expander(f"🎬 {title}"):
-                        st.write(f"**Size:** {size}")
-                        st.write(f"**Seeders:** {seeds}")
-                        if magnet:
-                            st.link_button("🧲 Open Magnet Link", magnet)
-                            st.code(magnet, language="markdown")
+                found = False
+                for link in links:
+                    href = link.get("href", "")
+                    # Filter for actual movie page links
+                    if "url?q=" in href and not "google.com" in href:
+                        actual_url = href.split("url?q=")[1].split("&")[0]
+                        title = link.text.replace("...", "").strip()
+                        
+                        if title and len(title) > 5:
+                            st.write(f"📂 **{title}**")
+                            st.link_button("View Torrent Page", actual_url)
+                            found = True
+                
+                if not found:
+                    st.warning("No links found. Try being more specific with the movie name.")
             else:
-                st.error("The search service is busy. Please try again in a moment.")
-
+                st.error("Google is temporarily rate-limiting the app. Try again in 5 minutes.")
         except Exception as e:
-            st.error("Connection error. Please check your internet or try a different search term.")
+            st.error("Connection too slow. Please refresh your browser tab.")
             
