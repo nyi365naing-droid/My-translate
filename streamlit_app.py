@@ -1,47 +1,41 @@
 import streamlit as st
-import requests
+import urllib.parse
 
-st.set_page_config(page_title="Pro Torrent Search", page_icon="🎬")
+st.set_page_config(page_title="Torrent Search Hub", page_icon="🎬")
 
-st.title("🎬 Pro Torrent Search")
-st.caption("Stable API Mode — Faster and No Blocks")
+st.title("🎬 Movie Search Hub")
+st.write("Since direct scraping is blocked, use these high-speed search buttons.")
 
-# Search Input
-query = st.text_input("Enter Movie Name", placeholder="e.g. Stephen Chow")
+# User Input
+query = st.text_input("Enter Movie Name (e.g., Police Story)", placeholder="Type here...")
 
 if query:
-    # 1. First we try a stable API
-    with st.spinner('Fetching from Global Database...'):
-        # This API is built for apps like yours
-        api_url = f"https://torrent-api-py-interface.vercel.app/api/v1/all/{query}"
+    encoded_query = urllib.parse.quote(query)
+    
+    st.subheader(f"Search results for: {query}")
+    
+    # We create direct links to the best search engines
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Bitsearch Direct Link
+        bit_url = f"https://bitsearch.to/search?q={encoded_query}"
+        st.link_button("🔍 Search on Bitsearch", bit_url, use_container_width=True)
         
-        try:
-            response = requests.get(api_url, timeout=15)
-            if response.status_code == 200:
-                results = response.json()
-                
-                if not results or len(results) == 0:
-                    st.warning("No direct results. Try the Google Search button below.")
-                else:
-                    for item in results[:15]: # Show top 15 results
-                        title = item.get('title', 'Unknown Title')
-                        magnet = item.get('magnet')
-                        size = item.get('size', 'N/A')
-                        seeds = item.get('seeds', '0')
-                        
-                        with st.expander(f"📦 {title}"):
-                            st.write(f"**Size:** {size} | **Seeders:** {seeds}")
-                            if magnet:
-                                st.link_button("🧲 Get Magnet Link", magnet)
-                                st.code(magnet, language="text")
-            else:
-                st.error("API is busy. Use the Manual Search button below.")
-        except:
-            # 2. If API fails, we provide a direct search button as a backup
-            st.info("Direct connection is slow. Use this shortcut:")
-            google_search = f"https://www.google.com/search?q={query}+site:bitsearch.to+OR+site:thepiratebay.org"
-            st.link_button(f"🔍 Search for '{query}' on Google", google_search)
+        # 1337x Direct Link
+        x_url = f"https://1337x.to/search/{encoded_query}/1/"
+        st.link_button("⚡ Search on 1337x", x_url, use_container_width=True)
+
+    with col2:
+        # Pirate Bay Proxy
+        tpb_url = f"https://tpb.party/search/{encoded_query}/1/99/0"
+        st.link_button("🏴‍☠️ Search PirateBay", tpb_url, use_container_width=True)
+        
+        # Google "Magnet" Hack
+        google_url = f"https://www.google.com/search?q={encoded_query}+magnet+link+torrent"
+        st.link_button("🌐 Google Magnet Search", google_url, use_container_width=True)
+
+    st.info("Tip: Click a button above. When you find the movie, click the 'Magnet' icon and your Torrent app (Flud/LibreTorrent) will open automatically.")
 
 st.divider()
-st.info("Tip: If 'Open Magnet Link' doesn't work, long-press the text code to copy it into your Torrent app (like Flud or LibreTorrent).")
-            
+st.caption("Built for Nyi Nyi Naing - Thailand 2026")
