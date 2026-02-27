@@ -4,48 +4,48 @@ from bs4 import BeautifulSoup
 
 st.set_page_config(page_title="Torrent Search", page_icon="🎬")
 
-st.title("🎬 Torrent Movie Search")
-query = st.text_input("Search for a movie", placeholder="Enter title...")
+st.title("🎬 Movie Torrent Search")
+st.caption("Anti-Block Version (using TPB Proxy)")
+
+query = st.text_input("Search for a movie", placeholder="e.g. Shaolin Soccer")
 
 if query:
     with st.spinner('Searching...'):
-        # Updated URL and better headers to avoid the timeout
-        url = f"https://bitsearch.to/search?q={query}"
+        # Using a PirateBay proxy which is more stable for cloud servers
+        search_url = f"https://tpb.party/search/{query}/1/99/0"
         
-        # This makes the website think you are using a real Android phone
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        
+
         try:
-            # We increased timeout to 20 seconds and added headers
-            response = requests.get(url, headers=headers, timeout=20)
-            
+            response = requests.get(search_url, headers=headers, timeout=15)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
-                results = soup.select('.search-result')
+                # PirateBay results are in a table row <tr>
+                rows = soup.select('tr')[1:]  # Skip the header row
 
-                if not results:
-                    st.warning("No results found. Try a different movie name.")
-                
-                for item in results:
-                    title = item.select_one('h5').text.strip()
-                    # Safe check for magnet links
-                    link_tag = item.find('a', href=lambda x: x and x.startswith('magnet'))
-                    if link_tag:
-                        magnet = link_tag['href']
-                        stats = item.select('.stats div')
-                        size = stats[2].text.strip() if len(stats) > 2 else "N/A"
-                        
-                        with st.expander(f"📥 {title}"):
-                            st.write(f"**Size:** {size}")
-                            st.code(magnet, language="markdown")
-                            st.link_button("Open Magnet Link", magnet)
+                if not rows:
+                    st.warning("No results found. Try another movie name.")
+
+                for row in rows:
+                    cols = row.find_all('td')
+                    if len(cols) > 1:
+                        title_div = cols[1].find('div', class_='detName')
+                        if title_div:
+                            title = title_div.text.strip()
+                            magnet = cols[1].find('a', href=lambda x: x and x.startswith('magnet'))['href']
+                            desc = cols[1].find('font', class_='detDesc').text.strip()
+                            
+                            # Clean up the description to get just the size
+                            size = desc.split(',')[1].replace('Size ', '') if ',' in desc else "Unknown"
+
+                            with st.expander(f"📦 {title}"):
+                                st.write(f"**Size:** {size}")
+                                st.link_button("🧲 Get Magnet Link", magnet)
             else:
-                st.error(f"Site is blocking us (Status Code: {response.status_code}). Try again in a minute.")
-                
+                st.error(f"Access denied (Status: {response.status_code}). Please try again.")
+
         except Exception as e:
-            st.error("Connection too slow. Please try clicking search again.")
+            st.error("Search engine is currently offline. Trying to reconnect...")
             
