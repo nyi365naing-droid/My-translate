@@ -1,58 +1,41 @@
 import streamlit as st
 import requests
+from bs4 import BeautifulSoup
 
-# Page configuration
-st.set_page_config(page_title="Burmese AI Pro", page_icon="🇲🇲")
-st.title("🇲🇲 Burmese AI Pro")
+# App Page Config
+st.set_page_config(page_title="Torrent Search", page_icon="🎬")
 
-# Sidebar for the API Key
-api_key = st.sidebar.text_input("Gemini API Key", value="AIzaSyB-gfM4w1RqICzzjFH2f5yAIen7kPCFFEw", type="password")
+st.title("🎬 Torrent Movie Search")
+query = st.text_input("Search for a movie (e.g., 'Deadpool')", placeholder="Enter title...")
 
-if api_key:
-    # Tone selection
-    tone = st.radio("Select Style", ["Comedy 😊", "Horror 💀", "Drama 🤍", "Action ⚡"], horizontal=True)
+if query:
+    with st.spinner('Searching bitsearch.to...'):
+        url = f"https://bitsearch.to/search?q={query}"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            results = soup.select('.search-result')
 
-    # File uploader
-    uploaded_file = st.file_uploader("Upload English SRT", type=['srt'])
-    
-    if uploaded_file:
-        english_text = uploaded_file.getvalue().decode("utf-8")
-        st.text_area("Original Text (Preview)", english_text[:500], height=150)
-
-        if st.button("🚀 Start Translation"):
-            # UPDATED FOR FEB 2026: Using the stable gemini-2.5-flash model
-            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
+            if not results:
+                st.warning("No results found.")
             
-            payload = {
-                "contents": [{
-                    "parts": [{
-                        "text": f"Translate this movie script/SRT to natural Burmese with a {tone} tone. Keep all SRT timestamps and numbers exactly the same: \n\n{english_text}"
-                    }]
-                }]
-            }
-            
-            with st.spinner("AI is translating..."):
-                try:
-                    response = requests.post(url, json=payload)
-                    data = response.json()
-                    
-                    if "candidates" in data:
-                        translated_text = data["candidates"][0]["content"]["parts"][0]["text"]
-                        st.success("✅ Success!")
-                        st.text_area("Burmese Translation", translated_text, height=300)
-                        
-                        st.download_button(
-                            label="📥 Download Burmese SRT",
-                            data=translated_text,
-                            file_name="translated_burmese.srt",
-                            mime="text/plain"
-                        )
-                    else:
-                        # Show exact error from Google to help us fix it
-                        error_msg = data.get('error', {}).get('message', 'Unknown Error')
-                        st.error(f"Google Error: {error_msg}")
-                except Exception as e:
-                    st.error(f"Connection Error: {str(e)}")
-else:
-    st.warning("Please enter your API key in the sidebar.")
-    
+            for item in results:
+                title = item.select_one('h5').text.strip()
+                magnet = item.find('a', href=lambda x: x and x.startswith('magnet'))['href']
+                stats = item.select('.stats div')
+                size = stats[2].text.strip() if len(stats) > 2 else "N/A"
+                seeds = stats[0].text.strip() if len(stats) > 0 else "0"
+
+                with st.container():
+                    col1, col2 = st.columns([4, 1])
+                    with col1:
+                        st.markdown(f"**{title}**")
+                        st.caption(f"Size: {size} | Seeders: {seeds}")
+                    with col2:
+                        st.link_button("🧲 Magnet", magnet)
+                    st.divider()
+        except Exception as e:
+            st.error(f"Error connecting: {e}")
+                
